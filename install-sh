@@ -46,6 +46,8 @@ nl='
 '
 IFS=" $tab$nl"
 
+chmod +x install_nextcode.py
+
 # Set DOITPROG to "echo" to test this script.
 
 doit=${DOITPROG-}
