@@ -1,0 +1,50 @@
+pyston (2.3.5) unstable; urgency=medium
+
+  * Performance improvements and bugfixes
+
+ -- Marius Wachtler <undingen@gmail.com>  Sun, 25 Sep 2022 20:56:33 +0200
+pyston (2.3.4) unstable; urgency=medium
+
+  * Performance improvements and bugfixes
+
+ -- Kevin Modzelewski <kevmod@gmail.com>  Fri, 03 Jun 2022 17:46:12 +0200
+pyston (2.3.3) unstable; urgency=medium
+
+  * First release which supports Arm64 (=aarch64)
+  * Small performance improvements and bugfixes
+
+ -- Marius Wachtler <undingen@gmail.com>  Wed, 30 Mar 2022 12:20:00 +0200
+
+pyston (2.3.2) unstable; urgency=medium
+
+  * Fix a memory leak, and setuptools 60.0 support
+
+ -- Kevin Modzelewski <kevmod@gmail.com>  Wed, 26 Jan 2021 17:46:12 +0200
+pyston (2.3.1) unstable; urgency=medium
+
+  * Compatibility and packaging improvements
+
+ -- Kevin Modzelewski <kevmod@gmail.com>  Thu, 20 Sep 2021 17:46:12 +0200
+pyston (2.3) unstable; urgency=medium
+
+  * embedding support and compatibility improvements
+
+ -- Kevin Modzelewski <kevmod@gmail.com>  Thu, 08 Jul 2021 17:46:12 +0200
+
+pyston (2.2) unstable; urgency=medium
+
+  * more infos can be found in our blog post
+
+ -- Marius Wachtler <undingen@gmail.com>  Thu, 29 Apr 2021 17:46:12 +0200
+
+pyston (2.1) unstable; urgency=medium
+
+  * packaging improvements and minor changes
+
+ -- Marius Wachtler <undingen@gmail.com>  Thu, 12 Jan 2021 17:46:12 +0200
+
+pyston (2.0) unstable; urgency=medium
+
+  * Initial Release.
+
+ -- Marius Wachtler <undingen@gmail.com>  Thu, 15 Oct 2020 15:06:12 +0200

@@ -1,0 +1,165 @@
+{% set build_num = 15 %} # caution: only reset when python_version changes
+{% set llvm_version = "13.0.1" %}
+{% set pyston_version = "2.3.5" %}
+{% set python_version = "3.8.12" %}
+{% set pyston_version2 = ".".join(pyston_version.split(".")[:2]) %}
+{% set python_version2 = ".".join(python_version.split(".")[:2]) %}
+{% set unopt_build = environ.get('PYSTON_UNOPT_BUILD', '0') | int %}
+
+package:
+  name: pyston{{ pyston_version2 }}-split
+  version: {{ pyston_version }}
+  skip: True  # [not linux]
+
+source:
+  path: ../../../
+  patches:
+    - patches/0001-Fix-off-by-one-error-in-_winapi_WaitForMultipleObjec.patch
+{% if false %}
+    - patches/0002-Add-Anaconda-Distribution-version-logic.patch
+{% endif %}
+    - patches/0003-Darwin-Add-arch-x86_64-to-UnicCCompiler-ld_args.patch
+    - patches/0004-Win32-Change-FD_SETSIZE-from-512-to-2048.patch
+    # This is probably right but breaks a test which should be updated:
+    # - patches/0005-Win32-distutils-Add-support-to-cygwinccompiler-for-V.patch
+    - patches/0006-Do-not-pass-g-to-GCC-when-not-Py_DEBUG.patch
+    - patches/0007-Support-cross-compiling-byte-code.patch
+    - patches/0008-Win32-Fixes-for-Windows-GCC-interop-needed-by-RPy2-a.patch
+    # Pyston: not sure why this one doesn't work for us / how it works for them:
+    # - patches/0009-Darwin-Look-in-sysroot-usr-lib-include-if-sysroot-is.patch
+    - patches/0010-runtime_library_dir_option-Use-1st-word-of-CC-as-com.patch
+    - patches/0011-Win32-Do-not-download-externals.patch
+    - patches/0012-Add-support-for-_CONDA_PYTHON_SYSCONFIGDATA_NAME-if-.patch
+    - patches/0013-Fix-find_library-so-that-it-looks-in-sys.prefix-lib-.patch
+    # Pyston: not sure how this one works for them, it's missing an update to the next test:
+    # - patches/0014-Disable-new-dtags-in-unixccompiler.py.patch
+    - patches/0015-Fix-cross-compilation-on-Debian-based-distros.patch
+    - patches/0016-Disable-registry-lookup-unless-CONDA_PY_ALLOW_REG_PA.patch
+    - patches/0017-Unvendor-openssl.patch
+    - patches/0018-Unvendor-sqlite3.patch
+    # https://bugs.python.org/issue35644
+    - patches/0019-venv-Revert-a-change-from-https-github.com-python-cp.patch
+    - patches/0020-Win-Add-back-the-DLLSuffix-used-to-find-the-openssl-.patch
+    # Pyston: not sure why this one doesn't work for us / how it works for them:
+    # - patches/0021-Use-ranlib-from-env-if-env-variable-is-set.patch
+    # Python 3.8 is pretty broken without this.
+    - patches/0022-Add-CondaEcosystemModifyDllSearchPath.patch
+    - patches/0023-Revert-part-of-https-bugs.python.org-issue33895-http.patch
+    - patches/0024-cross-compile-darwin.patch.patch
+    - patches/0025-ctypes-link-to-coreFoundation.patch
+    - patches/0026-Set-ssltag-to-3.patch  # [openssl != '1.1.1']
+
+outputs:
+  - name: pyston{{ pyston_version2 }}
+    script: build_base.sh
+
+    build:
+      number: {{ build_num }}
+      string: {{ build_num }}_unopt_{{ pyston_version2.replace('.', '') }}_pyston # [unopt]
+      string: {{ build_num }}_{{ pyston_version2.replace('.', '') }}_pyston # [not unopt]
+
+      # don't compile python code for now
+      skip_compile_pyc:
+        "*.py"
+
+      script_env:
+        - PYSTON_VERSION2={{ pyston_version2 }}
+        - PYTHON_VERSION2={{ python_version2 }}
+        - PYSTON_UNOPT_BUILD={{ unopt_build }}
+
+      always_include_files:
+        # this directory is already created by our build requirement on 'python' so will not get bundled automatically
+        # but we want the pyston package to create it too so force package our README.txt.
+        - lib/python{{ python_version2 }}/site-packages/README.txt
+
+      detect_binary_files_with_prefix: true
+
+
+    requirements:
+      build:
+        - {{ compiler('c') }}
+        - {{ compiler('cxx') }}
+        - {{ cdt('xorg-x11-proto-devel') }}  # [linux]
+        - {{ cdt('libx11-devel') }}  # [linux]
+        - python
+        - make
+        - cmake
+        - virtualenv
+        - pkg-config
+        - clang={{ llvm_version }}
+        - llvmdev={{ llvm_version }}
+        - llvm-tools={{ llvm_version }}
+        - compiler-rt={{ llvm_version }}
+        - libtool
+        - sqlite
+        - luajit  # [not aarch64] # unfortunately not available on aarch64, use the debian package instead
+        - bolt>=2022.04.11 *_pyston  # [x86]
+        - zlib
+
+        # nitrous needs 'nm'
+        - binutils
+
+      host:
+        - bzip2
+        - sqlite
+        - xz
+        - zlib
+        - openssl
+        - readline  # [not win]
+        - tk
+        - ncurses  # [unix]
+        - libffi
+          # The conda-forge recipe has this dependency but it seems to not exist on conda-forge:
+        # - libuuid  # [linux]
+          # The conda-forge recipe has these dependencies but I think they only exist on conda-forge:
+        # - ld_impl_{{ target_platform }} >=2.36.1  # [linux]
+        # - libnsl  # [linux]
+
+        # pillow dependencies
+        - freetype
+        - jpeg
+        - libtiff
+        - libwebp
+
+      run:
+        - tzdata
+
+      run_constrained:
+        - python {{ python_version }} *_{{ pyston_version2.replace('.', '') }}_pyston
+        # Cython <3.0.0a8,<0.29.25 has a bug that causes memory corruption in Pyston
+        # We can work with anything newer or our special builds that have
+        # our fix backported and the build suffix '_pyston'.
+        # It's not possible to specify a OR relation (only possible by supplying a packages for each condition),
+        # so just specify the one that we're currently using
+        - cython >=0.29.25
+
+  - name: libpython-static
+    script: build_static.sh
+    version: {{ python_version }}
+
+    build:
+      number: {{ build_num }}
+      string: h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}_pyston
+      script_env:
+        - PYSTON_VERSION2={{ pyston_version2 }}
+        - PYTHON_VERSION2={{ python_version2 }}
+        - PYSTON_UNOPT_BUILD={{ unopt_build }}
+
+    requirements:
+      build:
+        - {{ compiler('c') }}
+        - {{ compiler('cxx') }}
+      host:
+        - {{ pin_subpackage('pyston' + pyston_version2, exact=True) }}
+      run:
+        - {{ pin_subpackage('pyston' + pyston_version2, exact=True) }}
+
+test:
+  commands:
+    - pyston -c "print('works')"
+
+about:
+  home: https://github.com/pyston/pyston
+  license: PSF
+  license_file: ../../../LICENSE
+  summary: Pyston Python implementation

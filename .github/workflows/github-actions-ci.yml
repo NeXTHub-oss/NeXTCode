@@ -1,0 +1,189 @@
+name: GitHub Actions CI
+on: [push, pull_request]
+jobs:
+  conda-build:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        include:
+          - build: unopt
+            PYSTON_UNOPT_BUILD: 1
+          - build: release
+            PYSTON_UNOPT_BUILD: 0
+    steps:
+      - uses: actions/checkout@v2
+      - name: checkout submodules
+        run: |
+          git submodule update --init pyston/LuaJIT pyston/macrobenchmarks
+      - name: build and test pyston
+        env:
+          PYSTON_UNOPT_BUILD: ${{ matrix.PYSTON_UNOPT_BUILD }}
+        run: |
+          # enable core dumps
+          ulimit -c unlimited
+          sudo mkdir -p /cores
+          sudo chmod a+rwx /cores
+          echo "/cores/corefile-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
+
+          pyston/conda/build_pkgs.sh --ci-mode
+      - name: Archive packages
+        uses: actions/upload-artifact@v2
+        with:
+          name: packages-${{ matrix.build }}
+          path: |
+            release/conda_pkgs/
+
+      # core dump handling steps in case of failure
+      - name: Core dump - add conda build directory
+        if: ${{ failure() }}
+        run: |
+          # if we find a core dump copy in conda build directory as archive
+          if [ "$(ls -A /cores)" ]; then
+            docker cp pyston_build:/opt/conda/conda-bld /tmp/conda-bld
+            tar -C /tmp/ -czf /cores/conda-bld.tar.gz conda-bld/
+          fi
+          sudo chmod -R a+rwx /cores
+          sudo chown -R $USER:$USER /cores
+      - name: Core dump - upload
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: core-dump-${{ matrix.build }}
+          path: /cores/
+          if-no-files-found: ignore
+  unopt_build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: checkout submodules
+        run: |
+          git submodule update --init pyston/LuaJIT pyston/macrobenchmarks
+      - name: build pyston and test
+        run: |
+          # enable core dumps
+          ulimit -c unlimited
+          sudo mkdir -p /cores
+          sudo chmod a+rwx /cores
+          echo "/cores/corefile-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
+
+          docker build -t ubuntu_nonroot .github/workflows/
+          docker run -iv${PWD}:/pyston_dir -iv/cores:/cores --name pyston_build ubuntu_nonroot /pyston_dir/.github/workflows/unopt_build.sh
+
+      # core dump handling steps in case of failure
+      - name: Core dump - add conda build directory
+        if: ${{ failure() }}
+        run: |
+          # if we find a core dump copy in conda build directory as archive
+          if [ "$(ls -A /cores)" ]; then
+            docker cp pyston_build:/pyston_dir /tmp/pyston_dir
+            tar -C /tmp/ -czf /cores/pyston_dir.tar.gz pyston_dir/
+          fi
+          sudo chmod -R +rwx /cores
+          sudo chown -R $USER:$USER /cores
+      - name: Core dump - upload
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: core-dump-unopt_build
+          path: /cores/
+          if-no-files-found: ignore
+  pyston_lite:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: checkout submodules
+        run: |
+          git submodule update --init pyston/LuaJIT pyston/test/external/*
+      - name: build pyston and test
+        run: |
+          # enable core dumps
+          ulimit -c unlimited
+          sudo mkdir -p /cores
+          sudo chmod a+rwx /cores
+          echo "/cores/corefile-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
+
+          docker build -t ubuntu_nonroot .github/workflows/
+          docker run -e NOBOLT -iv${PWD}:/pyston_dir -iv/cores:/cores --name pyston_build ubuntu_nonroot /pyston_dir/.github/workflows/pyston_lite.sh ${{ matrix.python-version }}
+
+        env:
+          NOBOLT: "1"
+
+      # core dump handling steps in case of failure
+      - name: Core dump - add conda build directory
+        if: ${{ failure() }}
+        run: |
+          # if we find a core dump copy in conda build directory as archive
+          if [ "$(ls -A /cores)" ]; then
+            docker cp pyston_build:/pyston_dir /tmp/pyston_dir
+            tar -C /tmp/ -czf /cores/pyston_dir.tar.gz pyston_dir/
+          fi
+          sudo chmod -R +rwx /cores
+          sudo chown -R $USER:$USER /cores
+      - name: Core dump - upload
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: core-dump-unopt_build
+          path: /cores/
+          if-no-files-found: ignore
+
+  pyston_lite_38_arm64_qemu:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: checkout submodules
+        run: |
+          git submodule update --init pyston/LuaJIT
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: build pyston and test
+        run: |
+          docker buildx build -t ubuntu_nonroot --platform linux/arm64 .github/workflows/
+          docker run -e ADDITIONAL_TESTS_TO_SKIP -e NOPGO -e NOBOLT -iv${PWD}:/pyston_dir -iv/cores:/cores --name pyston_build ubuntu_nonroot /pyston_dir/.github/workflows/pyston_lite.sh 3.8
+        env:
+          # this tests fail with qemu
+          ADDITIONAL_TESTS_TO_SKIP: "test_cmd_line test_faulthandler test_posix test_signal test_socket
+    test_subprocess"
+          # Disable PGO to keep the build time down:
+          NOPGO: "1"
+          NOBOLT: "1"
+
+  pyston_lite_macos:
+    runs-on: macos-11
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: checkout submodules
+        run: |
+          git submodule update --init pyston/LuaJIT
+      - name: run code
+        run: |
+          brew install gcc@11 luajit-openresty
+          export PATH="/usr/local/opt/luajit-openresty/bin:$PATH"
+          # gcc-11 is already in path
+
+          cd pyston/pyston_lite
+
+          python3 --version
+
+          # this 3.7 test does not work on new macos
+          if [[ ${{ matrix.python-version }} == "3.7" ]]; then
+            export ADDITIONAL_TESTS_TO_SKIP="${ADDITIONAL_TESTS_TO_SKIP} test_platform";
+          fi
+
+          # pyston must be compiled by gcc not clang
+          CC=gcc-11 PYTHON=python3 make test
+          SHOW_JIT_STATS=1 ./env/bin/python ../test/inplace_math.py
+        env:
+          # this tests are flaky
+          ADDITIONAL_TESTS_TO_SKIP: "test_asyncgen test_ssl"

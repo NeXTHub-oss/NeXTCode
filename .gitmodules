@@ -1,0 +1,39 @@
+[submodule "pyston/bolt/bolt"]
+	path = pyston/bolt
+	url = https://github.com/llvm/llvm-project
+[submodule "pyston/LuaJIT"]
+	path = pyston/LuaJIT
+	url = https://github.com/LuaJIT/LuaJIT.git
+[submodule "pyston/llvm"]
+	path = pyston/llvm
+	url = https://github.com/llvm/llvm-project.git
+[submodule "pyston/tools/FlameGraph"]
+	path = pyston/tools/FlameGraph
+	url = https://github.com/brendangregg/FlameGraph
+[submodule "pyston/macrobenchmarks"]
+	path = pyston/macrobenchmarks
+	url = https://github.com/pyston/python-macrobenchmarks
+[submodule "pyston/test/external/django"]
+	path = pyston/test/external/django
+	url = https://github.com/django/django
+[submodule "pyston/test/external/urllib3"]
+	path = pyston/test/external/urllib3
+	url = https://github.com/urllib3/urllib3
+[submodule "pyston/test/external/setuptools"]
+	path = pyston/test/external/setuptools
+	url = https://github.com/pypa/setuptools
+[submodule "pyston/test/external/six"]
+	path = pyston/test/external/six
+	url = https://github.com/benjaminp/six
+[submodule "pyston/test/external/requests"]
+	path = pyston/test/external/requests
+	url = https://github.com/psf/requests
+[submodule "pyston/test/external/numpy"]
+	path = pyston/test/external/numpy
+	url = https://github.com/numpy/numpy
+[submodule "pyston/test/external/sqlalchemy"]
+	path = pyston/test/external/sqlalchemy
+	url = https://github.com/sqlalchemy/sqlalchemy
+[submodule "pyston/test/external/pandas"]
+	path = pyston/test/external/pandas
+	url = https://github.com/pandas-dev/pandas
