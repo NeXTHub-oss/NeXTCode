@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+
+def run_nextcode():
+    # Get the current working directory
+    current_dir = os.getcwd()
+
+    # Look for .code files in the current directory
+    code_files = [f for f in os.listdir(current_dir) if f.endswith(".code")]
+
+    if len(code_files) == 0:
+        print("Error: No .code file found in the current directory.")
+    elif len(code_files) > 1:
+        print("Error: Multiple .code files found. Please keep only one .code file in the directory.")
+    else:
+        file_name = code_files[0]
+        code_file_path = os.path.join(current_dir, file_name)
+        py_file_path = os.path.join(current_dir, file_name[:-5] + ".py")
+
+        # Rename .code file to .py temporarily
+        os.rename(code_file_path, py_file_path)
+
+        try:
+            # Run the file using Pyston interpreter
+            result = subprocess.run(["pyston", py_file_path], capture_output=True, text=True)
+            print(result.stdout)
+            print(result.stderr, file=sys.stderr)
+        finally:
+            # Rename back to .code
+            os.rename(py_file_path, code_file_path)
+
+if __name__ == "__main__":
+    # Ensure the command is 'run'
+    if len(sys.argv) != 2 or sys.argv[1] != "run":
+        print("Usage: nextcode run")
+    else:
+        run_nextcode()
